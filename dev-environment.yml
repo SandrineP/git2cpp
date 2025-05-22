@@ -1,0 +1,10 @@
+name: git2cpp-dev
+channels:
+  - conda-forge
+dependencies:
+  - cli11
+  - libgit2
+  - meson
+  - pkg-config
+  - python
+  - pytest
