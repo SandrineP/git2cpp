@@ -15,15 +15,8 @@ RepositoryWrapper::~RepositoryWrapper()
     }
 }
 
-void RepositoryWrapper::init(bool bare)
+void RepositoryWrapper::init(const std::string& directory, bool bare)
 {
-    std::cout << "repo init - start" << std::endl;
-
-    // what if it is already initialised???
-
-    // convert error code to exception
-    std::string path = "repo";
-    throwIfError(git_repository_init(&_repo, path.c_str(), bare));
-
-    std::cout << "repo init - end " << std::endl;
+    // what if it is already initialised?  Throw exception or delete and recreate?
+    throwIfError(git_repository_init(&_repo, directory.c_str(), bare));
 }
