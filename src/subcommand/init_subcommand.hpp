@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include "base_subcommand.hpp"
 
 class InitSubcommand : public BaseSubcommand
@@ -10,4 +11,5 @@ public:
 
 private:
     bool bare;
+    std::string directory;
 };

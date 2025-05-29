@@ -9,7 +9,7 @@ public:
 
     virtual ~RepositoryWrapper();
 
-    void init(bool bare);
+    void init(const std::string& directory, bool bare);
 
 private:
     git_repository *_repo;
