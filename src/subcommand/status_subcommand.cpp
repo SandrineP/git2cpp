@@ -68,7 +68,7 @@ enum class output_format
     SHORT = 2
 };
 
-void print_entries(git_status_t status, status_list_wrapper& sl, bool head_selector, output_format of)   // TODO: add different mods
+void print_entries(git_status_t status, status_list_wrapper& sl, bool head_selector, output_format of, bool add_root)   // TODO: add different mods
 {
     const auto& entry_list = sl.get_entry_list(status);
     if (!entry_list.empty())
@@ -95,6 +95,16 @@ void print_entries(git_status_t status, status_list_wrapper& sl, bool head_selec
             }
             const char* old_path = diff_delta->old_file.path;
             const char* new_path = diff_delta->new_file.path;
+            if (add_root)
+            {
+                const size_t first_slash_idx = std::string_view(old_path).find('/');
+                const char* directory;
+                if (std::string::npos != first_slash_idx)
+                {
+                    directory = std::string_view(old_path).substr(0, first_slash_idx).c_str();
+                    sl.dir_set.insert(directory);
+                }
+            }
             if (old_path && new_path && std::strcmp(old_path, new_path))
             {
                 std::cout << old_path << " -> " << new_path << std::endl;
@@ -123,8 +133,6 @@ void status_subcommand::run()
     auto repo = repository_wrapper::init(directory, bare);
     auto sl = status_list_wrapper::status_list(repo);
 
-    // TODO: add branch info
-
     output_format of = output_format::DEFAULT;
     if (short_flag)
     {
@@ -147,11 +155,11 @@ void status_subcommand::run()
         {
             std::cout << tobecommited_header << std::endl;
         }
-        print_entries(GIT_STATUS_INDEX_NEW, sl, true, of);
-        print_entries(GIT_STATUS_INDEX_MODIFIED, sl, true, of);
-        print_entries(GIT_STATUS_INDEX_DELETED, sl, true, of);
-        print_entries(GIT_STATUS_INDEX_RENAMED, sl, true, of);
-        print_entries(GIT_STATUS_INDEX_TYPECHANGE, sl, true, of);
+        print_entries(GIT_STATUS_INDEX_NEW, sl, true, of, true);
+        print_entries(GIT_STATUS_INDEX_MODIFIED, sl, true, of, true);
+        print_entries(GIT_STATUS_INDEX_DELETED, sl, true, of, true);
+        print_entries(GIT_STATUS_INDEX_RENAMED, sl, true, of, true);
+        print_entries(GIT_STATUS_INDEX_TYPECHANGE, sl, true, of, true);
         if (is_long)
         {
             std::cout << std::endl;
@@ -164,10 +172,10 @@ void status_subcommand::run()
         {
             std::cout << notstagged_header << std::endl;
         }
-        print_entries(GIT_STATUS_WT_MODIFIED, sl, false, of);
-        print_entries(GIT_STATUS_WT_DELETED, sl, false, of);
-        print_entries(GIT_STATUS_WT_TYPECHANGE, sl, false, of);
-        print_entries(GIT_STATUS_WT_RENAMED, sl, false, of);
+        print_entries(GIT_STATUS_WT_MODIFIED, sl, false, of, true);
+        print_entries(GIT_STATUS_WT_DELETED, sl, false, of, true);
+        print_entries(GIT_STATUS_WT_TYPECHANGE, sl, false, of, true);
+        print_entries(GIT_STATUS_WT_RENAMED, sl, false, of, true);
         if (is_long)
         {
             std::cout << std::endl;
@@ -180,7 +188,7 @@ void status_subcommand::run()
         {
             std::cout << untracked_header << std::endl;
         }
-        print_entries(GIT_STATUS_WT_NEW, sl, false, of);
+        print_entries(GIT_STATUS_WT_NEW, sl, false, of, false);
         if (is_long)
         {
             std::cout << std::endl;
@@ -193,7 +201,7 @@ void status_subcommand::run()
         {
             std::cout << ignored_header << std::endl;
         }
-        print_entries(GIT_STATUS_IGNORED, sl, false, of);
+        print_entries(GIT_STATUS_IGNORED, sl, false, of, false);
         if (is_long)
         {
             std::cout << std::endl;
