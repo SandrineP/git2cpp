@@ -1,5 +1,6 @@
 #include <iostream>
 #include <ostream>
+#include <set>
 #include <string>
 
 #include <git2.h>
@@ -71,20 +72,81 @@ enum class output_format
     SHORT = 2
 };
 
-void print_entries(git_status_t status, status_list_wrapper& sl, bool head_selector, output_format of, bool add_root)   // TODO: add different mods
+// void print_entries(git_status_t status, status_list_wrapper& sl, bool head_selector, output_format of,
+//         std::set<std::string>* tracked_dir_set = nullptr)
+// {
+//     const auto& entry_list = sl.get_entry_list(status);
+//     if (!entry_list.empty())
+//     {
+//         for (auto* entry : entry_list)
+//         {
+//             if ((of == output_format::DEFAULT) || (of == output_format::LONG))
+//             {
+//                 std::cout << status_msg_map.at(status).long_mod << "\t";
+//             }
+//             else if (of == output_format::SHORT)
+//             {
+//                 std::cout << status_msg_map.at(status).short_mod;
+//             }
+
+//             git_diff_delta* diff_delta;
+//             if (head_selector)
+//             {
+//                 diff_delta = entry->head_to_index;
+//             }
+//             else
+//             {
+//                 diff_delta = entry->index_to_workdir;
+//             }
+//             const char* old_path = diff_delta->old_file.path;
+//             const char* new_path = diff_delta->new_file.path;
+//             if (tracked_dir_set)
+//             {
+//                 const size_t first_slash_idx = std::string_view(old_path).find('/');
+//                 if (std::string::npos != first_slash_idx)
+//                 {
+//                     auto directory = std::string_view(old_path).substr(0, first_slash_idx);
+//                     tracked_dir_set->insert(std::string(directory));
+//                 }
+//             }
+//             if (old_path && new_path && std::strcmp(old_path, new_path))
+//             {
+//                 std::cout << old_path << " -> " << new_path << std::endl;
+//             }
+//             else
+//             {
+//                 if (old_path)
+//                 {
+//                     std::cout << old_path  << std::endl;
+//                 }
+//                 else
+//                 {
+//                     std::cout << new_path  << std::endl;
+//                 }
+//             }
+//         }
+//     }
+//     else
+//     {}
+// }
+//
+std::vector<std::pair<std::string, std::string>> get_entries_to_print(git_status_t status, status_list_wrapper& sl,
+    bool head_selector, output_format of, std::set<std::string>* tracked_dir_set = nullptr)
 {
+    std::vector<std::pair<std::string, std::string>> entries_to_print{};
     const auto& entry_list = sl.get_entry_list(status);
     if (!entry_list.empty())
     {
         for (auto* entry : entry_list)
         {
+            std::string bla;
             if ((of == output_format::DEFAULT) || (of == output_format::LONG))
             {
-                std::cout << status_msg_map.at(status).long_mod << "\t";
+                bla = status_msg_map.at(status).long_mod + "\t";
             }
             else if (of == output_format::SHORT)
             {
-                std::cout << status_msg_map.at(status).short_mod;
+                bla = status_msg_map.at(status).short_mod;
             }
 
             git_diff_delta* diff_delta;
@@ -98,35 +160,45 @@ void print_entries(git_status_t status, status_list_wrapper& sl, bool head_selec
             }
             const char* old_path = diff_delta->old_file.path;
             const char* new_path = diff_delta->new_file.path;
-            if (add_root)
+            std::string blou;
+            if (tracked_dir_set)
             {
                 const size_t first_slash_idx = std::string_view(old_path).find('/');
-                const char* directory;
                 if (std::string::npos != first_slash_idx)
                 {
-                    directory = std::string_view(old_path).substr(0, first_slash_idx).c_str();
-                    sl.dir_set.insert(directory);
+                    auto directory = std::string_view(old_path).substr(0, first_slash_idx);
+                    tracked_dir_set->insert(std::string(directory));
                 }
             }
             if (old_path && new_path && std::strcmp(old_path, new_path))
             {
-                std::cout << old_path << " -> " << new_path << std::endl;
+                blou = std::string(old_path) + " -> " + std::string(new_path);
             }
             else
             {
                 if (old_path)
                 {
-                    std::cout << old_path  << std::endl;
+                    blou = old_path;
                 }
                 else
                 {
-                    std::cout << new_path  << std::endl;
+                    blou = new_path;
                 }
             }
+            entries_to_print.push_back({bla, blou});
         }
     }
     else
     {}
+    return entries_to_print;
+}
+
+void print_entries(std::vector<std::pair<std::string, std::string>> entries_to_print)
+{
+    for (auto e: entries_to_print)
+    {
+        std::cout << e.first << e.second << std::endl;
+    }
 }
 
 void status_subcommand::run()
@@ -136,6 +208,11 @@ void status_subcommand::run()
     auto repo = repository_wrapper::init(directory, bare);
     auto sl = status_list_wrapper::status_list(repo);
     auto branch_name = reference_wrapper::get_ref_name(repo);
+
+    std::set<std::string>* tracked_dir_set{};
+    std::set<std::string>* untracked_dir_set{};
+    std::vector<std::string> untracked_to_print{};
+    std::vector<std::string> ignored_to_print{};
 
     output_format of = output_format::DEFAULT;
     if (short_flag)
@@ -170,11 +247,11 @@ void status_subcommand::run()
         {
             std::cout << tobecommited_header << std::endl;
         }
-        print_entries(GIT_STATUS_INDEX_NEW, sl, true, of, true);
-        print_entries(GIT_STATUS_INDEX_MODIFIED, sl, true, of, true);
-        print_entries(GIT_STATUS_INDEX_DELETED, sl, true, of, true);
-        print_entries(GIT_STATUS_INDEX_RENAMED, sl, true, of, true);
-        print_entries(GIT_STATUS_INDEX_TYPECHANGE, sl, true, of, true);
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_NEW, sl, true, of, tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_MODIFIED, sl, true, of, tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_DELETED, sl, true, of, tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_RENAMED, sl, true, of, tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_TYPECHANGE, sl, true, of, tracked_dir_set));
         if (is_long)
         {
             std::cout << std::endl;
@@ -187,10 +264,10 @@ void status_subcommand::run()
         {
             std::cout << notstagged_header << std::endl;
         }
-        print_entries(GIT_STATUS_WT_MODIFIED, sl, false, of, true);
-        print_entries(GIT_STATUS_WT_DELETED, sl, false, of, true);
-        print_entries(GIT_STATUS_WT_TYPECHANGE, sl, false, of, true);
-        print_entries(GIT_STATUS_WT_RENAMED, sl, false, of, true);
+        print_entries(get_entries_to_print(GIT_STATUS_WT_MODIFIED, sl, false, of, tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_WT_DELETED, sl, false, of, tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_WT_TYPECHANGE, sl, false, of, tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_WT_RENAMED, sl, false, of, tracked_dir_set));
         if (is_long)
         {
             std::cout << std::endl;
@@ -203,7 +280,30 @@ void status_subcommand::run()
         {
             std::cout << untracked_header << std::endl;
         }
-        print_entries(GIT_STATUS_WT_NEW, sl, false, of, false);
+        std::vector<std::pair<std::string, std::string>> untracked_untries_to_print{};
+        for (auto e: get_entries_to_print(GIT_STATUS_WT_NEW, sl, false, of))
+        {
+            const size_t first_slash_idx = std::string_view(e.second).find('/');
+            if (std::string::npos != first_slash_idx)
+            {
+                auto directory = std::string_view(e.second).substr(0, first_slash_idx);
+                if (auto directory in tracked_dir_set)
+                {
+
+                }
+                else
+                {
+                    if (auto directory in untracked_dir_set)
+                    {}
+                    else
+                    {
+                        untracked_untries_to_print.push_back({e.first, directory});
+                        untracked_dir_set->insert(std::string(directory));
+                    }
+                }
+            }
+        }
+        print_entries(untracked_untries_to_print);
         if (is_long)
         {
             std::cout << std::endl;
@@ -216,7 +316,7 @@ void status_subcommand::run()
         {
             std::cout << ignored_header << std::endl;
         }
-        print_entries(GIT_STATUS_IGNORED, sl, false, of, false);
+        print_entries(get_entries_to_print(GIT_STATUS_IGNORED, sl, false, of));     // TODO: same as untracked
         if (is_long)
         {
             std::cout << std::endl;

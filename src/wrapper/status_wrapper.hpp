@@ -1,7 +1,6 @@
 #pragma once
 
 #include <map>
-#include <set>
 #include <vector>
 
 #include <git2.h>
@@ -27,8 +26,6 @@ public:
     bool has_ignored_header() const;
     bool has_notstagged_header() const;
     bool has_nothingtocommit_message() const;
-
-    std::set<const char*> dir_set;
 
 private:
 
