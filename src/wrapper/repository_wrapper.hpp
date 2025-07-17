@@ -4,8 +4,8 @@
 
 #include <git2.h>
 
-#include "../utils/common.hpp"
 #include "../wrapper/index_wrapper.hpp"
+#include "../wrapper/wrapper_base.hpp"
 
 class repository_wrapper : public wrapper_base<git_repository>
 {
@@ -13,8 +13,8 @@ public:
 
     ~repository_wrapper();
 
-    repository_wrapper(repository_wrapper&&) = default;
-    repository_wrapper& operator=(repository_wrapper&&) = default;
+    repository_wrapper(repository_wrapper&&) noexcept = default;
+    repository_wrapper& operator=(repository_wrapper&&) noexcept = default;
 
     static repository_wrapper init(const std::string& directory, bool bare);
     static repository_wrapper open(const std::string& directory);
