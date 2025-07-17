@@ -13,19 +13,14 @@
 status_subcommand::status_subcommand(const libgit2_object&, CLI::App& app)
 {
     auto *sub = app.add_subcommand("status", "Show modified files in working directory, staged for your next commit");
-    // Displays paths that have differences between the index file and the current HEAD commit,
-    // paths that have differences between the working tree and the index file, and paths in the
-    // working tree that are not tracked by Git (and are not ignored by gitignore[5]).
-    // The first are what you would commit by running git commit;
-    // the second and third are what you could commit by running git add before running git commit.
 
-    sub->add_flag("-s,--short", short_flag, "Give the output in the short-format.");
-    sub->add_flag("--long", long_flag, "Give the output in the long-format. This is the default.");
+    sub->add_flag("-s,--short", m_short_flag, "Give the output in the short-format.");
+    sub->add_flag("--long", m_long_flag, "Give the output in the long-format. This is the default.");
     // sub->add_flag("--porcelain[=<version>]", porcelain, "Give the output in an easy-to-parse format for scripts.
     //     This is similar to the short output, but will remain stable across Git versions and regardless of user configuration.
     //     See below for details. The version parameter is used to specify the format version. This is optional and defaults
     //     to the original version v1 format.");
-    sub->add_flag("-b,--branch", branch_flag, "Show the branch and tracking info even in short-format.");
+    sub->add_flag("-b,--branch", m_branch_flag, "Show the branch and tracking info even in short-format.");
 
     sub->callback([this]() { this->run(); });
 };
@@ -152,7 +147,7 @@ void print_entries(std::vector<print_entry> entries_to_print)
     }
 }
 
-void print_not_tracked(std::vector<print_entry> entries_to_print, const std::set<std::string>& tracked_dir_set,
+void print_not_tracked(const std::vector<print_entry>& entries_to_print, const std::set<std::string>& tracked_dir_set,
         std::set<std::string>& untracked_dir_set)
 {
     std::vector<print_entry> not_tracked_entries_to_print{};
@@ -199,11 +194,11 @@ void status_subcommand::run()
     std::vector<std::string> ignored_to_print{};
 
     output_format of = output_format::DEFAULT;
-    if (short_flag)
+    if (m_short_flag)
     {
         of = output_format::SHORT;
     }
-    if (long_flag)
+    if (m_long_flag)
     {
         of = output_format::LONG;
     }
@@ -220,7 +215,7 @@ void status_subcommand::run()
     }
     else
     {
-        if (branch_flag)
+        if (m_branch_flag)
         {
             std::cout  << "## " << branch_name << std::endl;
         }
