@@ -1,4 +1,6 @@
 #include "../utils/git_exception.hpp"
+#include "../wrapper/index_wrapper.hpp"
+#include "../wrapper/object_wrapper.hpp"
 #include "../wrapper/repository_wrapper.hpp"
 
 repository_wrapper::~repository_wrapper()
@@ -107,6 +109,35 @@ commit_wrapper repository_wrapper::find_commit(const git_oid& id) const
     return commit_wrapper(commit);
 }
 
+void repository_wrapper::create_commit(const signature_wrapper::author_committer_signatures& author_committer_signatures,
+    const std::string& message)
+{
+    const char* message_encoding = "UTF-8";
+    git_oid commit_id;
+
+    std::string update_ref = "HEAD";
+    auto parent = revparse_single(update_ref);
+    std::size_t parent_count = 0;
+    const git_commit* parents[1] = {nullptr};
+    if (parent)
+    {
+        parent_count = 1;
+        parents[0] = *parent;
+    }
+
+    git_tree* tree;
+    index_wrapper index = this->make_index();
+    git_oid tree_id = index.write_tree();
+    index.write();
+
+    throw_if_error(git_tree_lookup(&tree, *this, &tree_id));
+
+    throw_if_error(git_commit_create(&commit_id, *this, update_ref.c_str(), author_committer_signatures.first, author_committer_signatures.second,
+        message_encoding, message.c_str(), tree, parent_count, parents));
+
+    git_tree_free(tree);
+}
+
 annotated_commit_wrapper repository_wrapper::find_annotated_commit(const git_oid& id) const
 {
     git_annotated_commit* commit;
@@ -129,4 +160,11 @@ void repository_wrapper::set_head(std::string_view ref_name)
 void repository_wrapper::set_head_detached(const annotated_commit_wrapper& commit)
 {
     throw_if_error(git_repository_set_head_detached_from_annotated(*this, commit));
+}
+
+void repository_wrapper::reset(const object_wrapper& target, git_reset_t reset_type, const git_checkout_options& checkout_options)
+{
+    // TODO: gerer l'index
+
+    throw_if_error(git_reset(*this, target, reset_type, &checkout_options));
 }

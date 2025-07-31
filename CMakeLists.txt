@@ -47,8 +47,12 @@ set(GIT2CPP_SRC
     ${GIT2CPP_SOURCE_DIR}/subcommand/checkout_subcommand.hpp
     ${GIT2CPP_SOURCE_DIR}/subcommand/clone_subcommand.cpp
     ${GIT2CPP_SOURCE_DIR}/subcommand/clone_subcommand.hpp
+    ${GIT2CPP_SOURCE_DIR}/subcommand/commit_subcommand.cpp
+    ${GIT2CPP_SOURCE_DIR}/subcommand/commit_subcommand.hpp
     ${GIT2CPP_SOURCE_DIR}/subcommand/init_subcommand.cpp
     ${GIT2CPP_SOURCE_DIR}/subcommand/init_subcommand.hpp
+    ${GIT2CPP_SOURCE_DIR}/subcommand/reset_subcommand.cpp
+    ${GIT2CPP_SOURCE_DIR}/subcommand/reset_subcommand.hpp
     ${GIT2CPP_SOURCE_DIR}/subcommand/status_subcommand.cpp
     ${GIT2CPP_SOURCE_DIR}/subcommand/status_subcommand.hpp
     ${GIT2CPP_SOURCE_DIR}/utils/common.cpp
@@ -70,6 +74,8 @@ set(GIT2CPP_SRC
     ${GIT2CPP_SOURCE_DIR}/wrapper/refs_wrapper.hpp
     ${GIT2CPP_SOURCE_DIR}/wrapper/repository_wrapper.cpp
     ${GIT2CPP_SOURCE_DIR}/wrapper/repository_wrapper.hpp
+    ${GIT2CPP_SOURCE_DIR}/wrapper/signature_wrapper.cpp
+    ${GIT2CPP_SOURCE_DIR}/wrapper/signature_wrapper.hpp
     ${GIT2CPP_SOURCE_DIR}/wrapper/status_wrapper.cpp
     ${GIT2CPP_SOURCE_DIR}/wrapper/status_wrapper.hpp
     ${GIT2CPP_SOURCE_DIR}/wrapper/wrapper_base.hpp
