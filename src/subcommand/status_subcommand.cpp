@@ -4,6 +4,7 @@
 #include <string>
 
 #include <git2.h>
+#include <termcolor/termcolor.hpp>
 
 #include "status_subcommand.hpp"
 #include "../wrapper/status_wrapper.hpp"
@@ -45,16 +46,16 @@ struct status_messages
 const std::map<git_status_t, status_messages> status_msg_map =   //TODO : check spaces in short_mod
 {
     { GIT_STATUS_CURRENT, {"", ""} },
-    { GIT_STATUS_INDEX_NEW, {"A  ", "\t new file:"} },
-    { GIT_STATUS_INDEX_MODIFIED, {"M  ", "\t modified:"} },
-    { GIT_STATUS_INDEX_DELETED, {"D  ", "\t deleted:"} },
-    { GIT_STATUS_INDEX_RENAMED, {"R  ", "\t renamed:"} },
-    { GIT_STATUS_INDEX_TYPECHANGE, {"T  ", "\t typechange:"} },
+    { GIT_STATUS_INDEX_NEW, {"A  ", "\tnew file:"} },
+    { GIT_STATUS_INDEX_MODIFIED, {"M  ", "\tmodified:"} },
+    { GIT_STATUS_INDEX_DELETED, {"D  ", "\tdeleted:"} },
+    { GIT_STATUS_INDEX_RENAMED, {"R  ", "\trenamed:"} },
+    { GIT_STATUS_INDEX_TYPECHANGE, {"T  ", "\ttypechange:"} },
     { GIT_STATUS_WT_NEW, {"?? ", ""} },
-    { GIT_STATUS_WT_MODIFIED, {" M " , "\t modified:"} },
-    { GIT_STATUS_WT_DELETED, {" D ", "\t deleted:"} },
-    { GIT_STATUS_WT_TYPECHANGE, {" T ", "\t typechange:"} },
-    { GIT_STATUS_WT_RENAMED, {" R ", "\t renamed:"} },
+    { GIT_STATUS_WT_MODIFIED, {" M " , "\tmodified:"} },
+    { GIT_STATUS_WT_DELETED, {" D ", "\tdeleted:"} },
+    { GIT_STATUS_WT_TYPECHANGE, {" T ", "\ttypechange:"} },
+    { GIT_STATUS_WT_RENAMED, {" R ", "\trenamed:"} },
     { GIT_STATUS_WT_UNREADABLE, {"", ""} },
     { GIT_STATUS_IGNORED, {"!! ", ""} },
     { GIT_STATUS_CONFLICTED, {"", ""} },
@@ -78,7 +79,7 @@ std::string get_print_status(git_status_t status, output_format of)
     std::string entry_status;
     if ((of == output_format::DEFAULT) || (of == output_format::LONG))
     {
-        entry_status = status_msg_map.at(status).long_mod + "\t";
+        entry_status = status_msg_map.at(status).long_mod + "   ";
     }
     else if (of == output_format::SHORT)
     {
@@ -139,16 +140,23 @@ std::vector<print_entry> get_entries_to_print(git_status_t status, status_list_w
     return entries_to_print;
 }
 
-void print_entries(std::vector<print_entry> entries_to_print)
+void print_entries(std::vector<print_entry> entries_to_print, bool is_long, stream_colour_fn colour)
 {
     for (auto e: entries_to_print)
     {
-        std::cout << e.status << e.item << std::endl;
+        if (is_long)
+        {
+            std::cout << colour << e.status << e.item << termcolor::reset << std::endl;
+        }
+        else
+        {
+            std::cout << colour << e.status << termcolor::reset << e.item << std::endl;
+        }
     }
 }
 
 void print_not_tracked(const std::vector<print_entry>& entries_to_print, const std::set<std::string>& tracked_dir_set,
-        std::set<std::string>& untracked_dir_set)
+        std::set<std::string>& untracked_dir_set, bool is_long, stream_colour_fn colour)
 {
     std::vector<print_entry> not_tracked_entries_to_print{};
     for (auto e: entries_to_print)
@@ -156,7 +164,7 @@ void print_not_tracked(const std::vector<print_entry>& entries_to_print, const s
         const size_t first_slash_idx = e.item.find('/');
         if (std::string::npos != first_slash_idx)
         {
-            auto directory = e.item.substr(0, first_slash_idx);
+            auto directory = "\t" + e.item.substr(0, first_slash_idx) + "/";
             if (tracked_dir_set.contains(directory))
             {
                 not_tracked_entries_to_print.push_back(e);
@@ -177,7 +185,7 @@ void print_not_tracked(const std::vector<print_entry>& entries_to_print, const s
             not_tracked_entries_to_print.push_back(e);
         }
     }
-    print_entries(not_tracked_entries_to_print);
+    print_entries(not_tracked_entries_to_print, is_long, colour);
 }
 
 void status_subcommand::run()
@@ -220,17 +228,19 @@ void status_subcommand::run()
             std::cout  << "## " << branch_name << std::endl;
         }
     }
+
     if (sl.has_tobecommited_header())
     {
+        stream_colour_fn colour = termcolor::green;
         if (is_long)
         {
-            std::cout << tobecommited_header << std::endl;
+            std::cout << tobecommited_header;
         }
-        print_entries(get_entries_to_print(GIT_STATUS_INDEX_NEW, sl, true, of, &tracked_dir_set));
-        print_entries(get_entries_to_print(GIT_STATUS_INDEX_MODIFIED, sl, true, of, &tracked_dir_set));
-        print_entries(get_entries_to_print(GIT_STATUS_INDEX_DELETED, sl, true, of, &tracked_dir_set));
-        print_entries(get_entries_to_print(GIT_STATUS_INDEX_RENAMED, sl, true, of, &tracked_dir_set));
-        print_entries(get_entries_to_print(GIT_STATUS_INDEX_TYPECHANGE, sl, true, of, &tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_NEW, sl, true, of, &tracked_dir_set), is_long, colour);
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_MODIFIED, sl, true, of, &tracked_dir_set), is_long, colour);
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_DELETED, sl, true, of, &tracked_dir_set), is_long, colour);
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_RENAMED, sl, true, of, &tracked_dir_set), is_long, colour);
+        print_entries(get_entries_to_print(GIT_STATUS_INDEX_TYPECHANGE, sl, true, of, &tracked_dir_set), is_long, colour);
         if (is_long)
         {
             std::cout << std::endl;
@@ -239,44 +249,46 @@ void status_subcommand::run()
 
     if (sl.has_notstagged_header())
     {
+        stream_colour_fn colour = termcolor::red;
         if (is_long)
         {
-            std::cout << notstagged_header << std::endl;
+            std::cout << notstagged_header;
         }
-        print_entries(get_entries_to_print(GIT_STATUS_WT_MODIFIED, sl, false, of, &tracked_dir_set));
-        print_entries(get_entries_to_print(GIT_STATUS_WT_DELETED, sl, false, of, &tracked_dir_set));
-        print_entries(get_entries_to_print(GIT_STATUS_WT_TYPECHANGE, sl, false, of, &tracked_dir_set));
-        print_entries(get_entries_to_print(GIT_STATUS_WT_RENAMED, sl, false, of, &tracked_dir_set));
+        print_entries(get_entries_to_print(GIT_STATUS_WT_MODIFIED, sl, false, of, &tracked_dir_set), is_long, colour);
+        print_entries(get_entries_to_print(GIT_STATUS_WT_DELETED, sl, false, of, &tracked_dir_set), is_long, colour);
+        print_entries(get_entries_to_print(GIT_STATUS_WT_TYPECHANGE, sl, false, of, &tracked_dir_set), is_long, colour);
+        print_entries(get_entries_to_print(GIT_STATUS_WT_RENAMED, sl, false, of, &tracked_dir_set), is_long, colour);
         if (is_long)
         {
             std::cout << std::endl;
         }
     }
-
 
     if (sl.has_untracked_header())
     {
+        stream_colour_fn colour = termcolor::red;
         if (is_long)
         {
-            std::cout << untracked_header << std::endl;
+            std::cout << untracked_header;
         }
-        print_not_tracked(get_entries_to_print(GIT_STATUS_WT_NEW, sl, false, of), tracked_dir_set, untracked_dir_set);
+        print_not_tracked(get_entries_to_print(GIT_STATUS_WT_NEW, sl, false, of), tracked_dir_set, untracked_dir_set, is_long, colour);
         if (is_long)
         {
             std::cout << std::endl;
         }
     }
 
-    if (sl.has_ignored_header())
-    {
-        if (is_long)
-        {
-            std::cout << ignored_header << std::endl;
-        }
-        print_not_tracked(get_entries_to_print(GIT_STATUS_IGNORED, sl, false, of), tracked_dir_set, untracked_dir_set);
-        if (is_long)
-        {
-            std::cout << std::endl;
-        }
-    }
+    // if (sl.has_ignored_header())
+    // {
+    //     stream_colour_fn colour = termcolor::red;
+    //     if (is_long)
+    //     {
+    //         std::cout << ignored_header;
+    //     }
+    //     print_not_tracked(get_entries_to_print(GIT_STATUS_IGNORED, sl, false, of), tracked_dir_set, untracked_dir_set, is_long, colour);
+    //     if (is_long)
+    //     {
+    //         std::cout << std::endl;
+    //     }
+    // }
 }

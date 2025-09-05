@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <git2.h>
@@ -28,6 +27,8 @@ public:
 };
 
 std::string get_current_git_path();
+
+using stream_colour_fn = std::ostream& (*)(std::ostream&);
 
 class git_strarray_wrapper
 {
