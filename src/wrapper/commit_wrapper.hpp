@@ -1,8 +1,9 @@
 #pragma once
 
 #include <git2.h>
+#include <vector>
+#include <string>
 
-#include "../wrapper/repository_wrapper.hpp"
 #include "../wrapper/wrapper_base.hpp"
 
 class commit_wrapper : public wrapper_base<git_commit>
@@ -28,3 +29,5 @@ private:
     friend class repository_wrapper;
     friend class reference_wrapper;
 };
+
+using commit_list_wrapper = list_wrapper<commit_wrapper>;

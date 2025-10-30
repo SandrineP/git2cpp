@@ -27,3 +27,4 @@ private:
     friend class repository_wrapper;
 };
 
+using annotated_commit_list_wrapper = list_wrapper<annotated_commit_wrapper>;

@@ -43,7 +43,7 @@ void checkout_subcommand::run()
     }
     else
     {
-        auto optional_commit = resolve_local_ref(repo, m_branch_name);
+        auto optional_commit = repo.resolve_local_ref(m_branch_name);
         if (!optional_commit)
         {
             // TODO: handle remote refs
@@ -53,26 +53,6 @@ void checkout_subcommand::run()
         }
         checkout_tree(repo, *optional_commit, m_branch_name, options);
         update_head(repo, *optional_commit, m_branch_name);
-    }
-}
-
-std::optional<annotated_commit_wrapper> checkout_subcommand::resolve_local_ref
-(
-    const repository_wrapper& repo,
-    const std::string& target_name
-)
-{
-    if (auto ref = repo.find_reference_dwim(target_name))
-    {
-        return repo.find_annotated_commit(*ref);
-    }
-    else if (auto obj = repo.revparse_single(target_name))
-    {
-        return repo.find_annotated_commit(obj->oid());
-    }
-    else
-    {
-        return std::nullopt;
     }
 }
 
