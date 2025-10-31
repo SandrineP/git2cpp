@@ -15,6 +15,14 @@ public:
 private:
 
     annotated_commit_list_wrapper resolve_heads(const repository_wrapper& repo);
+    void create_merge_commit(
+        repository_wrapper& repo,
+        const index_wrapper& index,
+        const annotated_commit_list_wrapper& commits_to_merge,
+        size_t num_commits_to_merge);
 
     std::vector<std::string> m_branches_to_merge;
+    // bool m_no_ff = false;
+    // bool m_commit = false;
+    bool m_no_commit = false;
 };
