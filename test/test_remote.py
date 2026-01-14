@@ -300,7 +300,7 @@ def test_fetch_from_remote(git2cpp_path, repo_with_remote):
     local_path, remote_path = repo_with_remote
 
     # Note: This is a bare repo with no refs, so fetch will fail gracefully
-    # For now, just test that fetch command runs (it will fail gracefully if no refs)
+    # For now, just test that  /stdofetch command runs (it will fail gracefully if no refs)
     cmd = [git2cpp_path, "fetch", "origin"]
     p = subprocess.run(cmd, capture_output=True, text=True, cwd=local_path)
     # Fetch might succeed (empty) or fail (no refs), but shouldn't crash
@@ -319,6 +319,12 @@ def test_fetch_default_origin(git2cpp_path, repo_with_remote):
 
 def test_fetch_depth(git2cpp_path, tmp_path, run_in_tmp_path):
     url = "https://github.com/xtensor-stack/xtl.git"
+
+    invalid_clone_cmd = [git2cpp_path, "clone", "--depth", "0", url]
+    p_invalid_clone = subprocess.run(invalid_clone_cmd, capture_output=True, cwd=tmp_path, text=True)
+    assert p_invalid_clone.returncode == 0
+    assert p_invalid_clone.stdout.startswith("fatal: depth 0 is not a positive number")
+
     clone_cmd = [git2cpp_path, "clone", "--depth", "1", url]
     p_clone = subprocess.run(clone_cmd, capture_output=True, cwd=tmp_path, text=True)
     assert p_clone.returncode == 0
@@ -359,6 +365,29 @@ def test_unshallow(git2cpp_path, tmp_path, run_in_tmp_path):
         unshallow_cmd, capture_output=True, cwd=xtl_path, text=True
     )
     assert p_unshallow.returncode == 0
+
+    p_log_2 = subprocess.run(cmd_log, capture_output=True, cwd=xtl_path, text=True)
+    assert p_log_2.returncode == 0
+    assert p_log_2.stdout.count("Author") > 1
+
+
+def test_fetch_deepen(git2cpp_path, tmp_path, run_in_tmp_path):
+    url = "https://github.com/xtensor-stack/xtl.git"
+    clone_cmd = [git2cpp_path, "clone", "--depth", "1", url]
+    p_clone = subprocess.run(clone_cmd, capture_output=True, cwd=tmp_path, text=True)
+    assert p_clone.returncode == 0
+    assert (tmp_path / "xtl").exists()
+
+    xtl_path = tmp_path / "xtl"
+
+    cmd_log = [git2cpp_path, "log"]
+    p_log = subprocess.run(cmd_log, capture_output=True, cwd=xtl_path, text=True)
+    assert p_log.returncode == 0
+    assert p_log.stdout.count("Author") == 1
+
+    deepen_cmd = [git2cpp_path, "fetch", "--deepen", "2"]
+    p_deepen = subprocess.run(deepen_cmd, capture_output=True, cwd=xtl_path, text=True)
+    assert p_deepen.returncode == 0
 
     p_log_2 = subprocess.run(cmd_log, capture_output=True, cwd=xtl_path, text=True)
     assert p_log_2.returncode == 0
