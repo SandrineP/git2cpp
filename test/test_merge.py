@@ -5,7 +5,7 @@ import pytest
 
 # TODO: Have a different "person" for the commit and for the merge
 # TODO: Test "unborn" case, but how ?
-def test_merge_fast_forward(xtl_clone, git_config, git2cpp_path, tmp_path, monkeypatch):
+def test_merge_fast_forward(xtl_clone, commit_env_config, git2cpp_path, tmp_path):
     assert (tmp_path / "xtl").exists()
     xtl_path = tmp_path / "xtl"
 
@@ -52,7 +52,7 @@ def test_merge_fast_forward(xtl_clone, git_config, git2cpp_path, tmp_path, monke
     assert p_merge_2.stdout == "Already up-to-date\n"
 
 
-def test_merge_commit(xtl_clone, git_config, git2cpp_path, tmp_path, monkeypatch):
+def test_merge_commit(xtl_clone, commit_env_config, git2cpp_path, tmp_path):
     assert (tmp_path / "xtl").exists()
     xtl_path = tmp_path / "xtl"
 
@@ -114,9 +114,7 @@ def test_merge_commit(xtl_clone, git_config, git2cpp_path, tmp_path, monkeypatch
 
 
 @pytest.mark.parametrize("flag", ["--abort", "--quit", "--continue"])
-def test_merge_conflict(
-    xtl_clone, git_config, git2cpp_path, tmp_path, monkeypatch, flag
-):
+def test_merge_conflict(xtl_clone, commit_env_config, git2cpp_path, tmp_path, flag):
     assert (tmp_path / "xtl").exists()
     xtl_path = tmp_path / "xtl"
 
