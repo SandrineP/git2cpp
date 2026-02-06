@@ -1,11 +1,12 @@
 #include <filesystem>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <unistd.h>
 #include <map>
 
-#include <git2.h>
-
 #include "common.hpp"
+#include "git_exception.hpp"
 
 libgit2_object::libgit2_object()
 {
@@ -100,4 +101,16 @@ void git_strarray_wrapper::init_str_array()
     {
         m_array.strings[i] = const_cast<char*>(m_patterns[i].c_str());
     }
+}
+
+std::string read_file(const std::string& path)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file)
+    {
+        throw git_exception("error: Could not access " + path, git2cpp_error_code::GENERIC_ERROR);
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
 }
