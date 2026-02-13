@@ -57,6 +57,8 @@ public:
 
     operator git_strarray*();
 
+    size_t size();
+
 private:
     std::vector<std::string> m_patterns;
     git_strarray m_array;
@@ -66,3 +68,5 @@ private:
 };
 
 std::string read_file(const std::string& path);
+
+std::vector<std::string> split_input_at_newlines(std::string_view str);

@@ -4,6 +4,9 @@
 #include <sstream>
 #include <unistd.h>
 #include <map>
+#include <ranges>
+
+#include <git2.h>
 
 #include "common.hpp"
 #include "git_exception.hpp"
@@ -103,6 +106,11 @@ void git_strarray_wrapper::init_str_array()
     }
 }
 
+size_t git_strarray_wrapper::size()
+{
+    return m_patterns.size();
+}
+
 std::string read_file(const std::string& path)
 {
     std::ifstream file(path, std::ios::binary);
@@ -113,4 +121,13 @@ std::string read_file(const std::string& path)
     std::stringstream buffer;
     buffer << file.rdbuf();
     return buffer.str();
+}
+
+std::vector<std::string> split_input_at_newlines(std::string_view str)
+{
+    auto split = str | std::ranges::views::split('\n')
+                     | std::ranges::views::transform([](auto&& range) {
+                         return std::string(range.begin(), range.end());
+                     });
+    return std::vector<std::string>{split.begin(), split.end()};
 }

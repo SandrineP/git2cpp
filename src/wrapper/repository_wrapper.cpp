@@ -505,3 +505,16 @@ diff_wrapper repository_wrapper::diff_index_to_workdir(std::optional<index_wrapp
     throw_if_error(git_diff_index_to_workdir(&diff, *this, idx, diffopts));
     return diff_wrapper(diff);
 }
+
+// Tags
+
+std::vector<std::string> repository_wrapper::tag_list_match(std::string pattern)
+{
+    git_strarray tag_names;
+    throw_if_error(git_tag_list_match(&tag_names, pattern.c_str(), *this));
+
+    std::vector<std::string> result(tag_names.strings, tag_names.strings + tag_names.count);
+
+    git_strarray_dispose(&tag_names);
+    return result;
+}
