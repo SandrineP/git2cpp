@@ -33,15 +33,16 @@ diff_subcommand::diff_subcommand(const libgit2_object&, CLI::App& app)
     sub->add_flag("--patience", m_patience_flag, "Generate diff using patience algorithm");
     sub->add_flag("--minimal", m_minimal_flag, "Spend extra time to find smallest diff");
 
-    // TODO: add the following flags after the "move" subcommand has been implemented (needed for the tests)
-    // sub->add_option("-M,--find-renames", m_rename_threshold, "Detect renames")
-    //     ->expected(0,1)
-    //     ->each([this](const std::string&) { m_find_renames_flag = true; });
-    // sub->add_option("-C,--find-copies", m_copy_threshold, "Detect copies")
-    //     ->expected(0,1)
-    //     ->each([this](const std::string&) { m_find_copies_flag = true; });
-    // sub->add_flag("--find-copies-harder", m_find_copies_harder_flag, "Detect copies from unmodified files");
-    // sub->add_flag("-B,--break-rewrites", m_break_rewrites_flag, "Detect file rewrites");
+    sub->add_option("-M,--find-renames", m_rename_threshold, "Detect renames")
+        ->expected(0,1)
+        ->default_val(50)
+        ->each([this](const std::string&) { m_find_renames_flag = true; });
+    sub->add_option("-C,--find-copies", m_copy_threshold, "Detect copies")
+        ->expected(0,1)
+        ->default_val(50)
+        ->each([this](const std::string&) { m_find_copies_flag = true; });
+    sub->add_flag("--find-copies-harder", m_find_copies_harder_flag, "Detect copies from unmodified files");
+    sub->add_flag("-B,--break-rewrites", m_break_rewrites_flag, "Detect file rewrites");
 
     sub->add_option("-U,--unified", m_context_lines, "Lines of context");
     sub->add_option("--inter-hunk-context", m_interhunk_lines, "Context between hunks");
@@ -183,33 +184,31 @@ void diff_subcommand::print_diff(diff_wrapper& diff, bool use_colour)
         return;
     }
 
-    // TODO: add the following flags after the "move" subcommand has been implemented (needed for the tests)
-    // if (m_find_renames_flag || m_find_copies_flag || m_find_copies_harder_flag || m_break_rewrites_flag)
-    // {
-    //     git_diff_find_options find_opts;
-    //     git_diff_find_options_init(&find_opts, GIT_DIFF_FIND_OPTIONS_VERSION);
+    if (m_find_renames_flag || m_find_copies_flag || m_find_copies_harder_flag || m_break_rewrites_flag)
+    {
+        git_diff_find_options find_opts = GIT_DIFF_FIND_OPTIONS_INIT;
 
-    //     if (m_find_renames_flag)
-    //     {
-    //         find_opts.flags |= GIT_DIFF_FIND_RENAMES;
-    //         find_opts.rename_threshold = m_rename_threshold;
-    //     }
-    //     if (m_find_copies_flag)
-    //     {
-    //         find_opts.flags |= GIT_DIFF_FIND_COPIES;
-    //         find_opts.copy_threshold = m_copy_threshold;
-    //     }
-    //     if (m_find_copies_harder_flag)
-    //     {
-    //         find_opts.flags |= GIT_DIFF_FIND_COPIES_FROM_UNMODIFIED;
-    //     }
-    //     if (m_break_rewrites_flag)
-    //     {
-    //         find_opts.flags |= GIT_DIFF_FIND_REWRITES;
-    //     }
+        if (m_find_renames_flag)
+        {
+            find_opts.flags |= GIT_DIFF_FIND_RENAMES;
+            find_opts.rename_threshold = (uint16_t)m_rename_threshold;
+        }
+        if (m_find_copies_flag)
+        {
+            find_opts.flags |= GIT_DIFF_FIND_COPIES;
+            find_opts.copy_threshold = (uint16_t)m_copy_threshold;
+        }
+        if (m_find_copies_harder_flag)
+        {
+            find_opts.flags |= GIT_DIFF_FIND_COPIES_FROM_UNMODIFIED;
+        }
+        if (m_break_rewrites_flag)
+        {
+            find_opts.flags |= GIT_DIFF_FIND_REWRITES;
+        }
 
-    //     diff.find_similar(&find_opts);
-    // }
+        diff.find_similar(&find_opts);
+    }
 
     git_diff_format_t format = GIT_DIFF_FORMAT_PATCH;
     if (m_name_only_flag)
@@ -228,7 +227,7 @@ void diff_subcommand::print_diff(diff_wrapper& diff, bool use_colour)
     diff.print(format, colour_printer, &use_colour);
 }
 
-diff_wrapper compute_diff_no_index(std::vector<std::string> files, git_diff_options& diffopts) //std::pair<buf_wrapper, diff_wrapper>
+diff_wrapper compute_diff_no_index(std::vector<std::string> files, git_diff_options& diffopts)
 {
 	if (files.size() != 2)
     {
@@ -242,11 +241,11 @@ diff_wrapper compute_diff_no_index(std::vector<std::string> files, git_diff_opti
 
     if (file1_str.empty())
     {
-        throw git_exception("Cannot read file: " + files[0], git2cpp_error_code::GENERIC_ERROR);   //TODO: check error code with git
+        throw git_exception("Cannot read file: " + files[0], git2cpp_error_code::GENERIC_ERROR);
     }
     if (file2_str.empty())
     {
-        throw git_exception("Cannot read file: " + files[1], git2cpp_error_code::GENERIC_ERROR);   //TODO: check error code with git
+        throw git_exception("Cannot read file: " + files[1], git2cpp_error_code::GENERIC_ERROR);
     }
 
     auto patch = patch_wrapper::patch_from_files(files[0], file1_str, files[1], file2_str, &diffopts);
@@ -306,7 +305,10 @@ void diff_subcommand::run()
         std::optional<tree_wrapper> tree1;
         std::optional<tree_wrapper> tree2;
 
-        // TODO: throw error if m_files.size() > 2
+        if (m_files.size() > 2)
+        {
+            throw git_exception("Only one or two tree identifiers can be provided", git2cpp_error_code::BAD_ARGUMENT);
+        }
         if (m_files.size() >= 1)
         {
             tree1 = repo.treeish_to_tree(m_files[0]);
@@ -324,7 +326,11 @@ void diff_subcommand::run()
             }
             else if (m_cached_flag)
             {
-                if (m_cached_flag || !tree1)
+                if (m_no_index_flag)
+                {
+                    throw git_exception("--cached and --no-index are incompatible", git2cpp_error_code::BAD_ARGUMENT);
+                }
+                if (!tree1)
                 {
                     tree1 = repo.treeish_to_tree("HEAD");
                 }
