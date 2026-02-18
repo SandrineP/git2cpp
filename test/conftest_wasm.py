@@ -89,8 +89,11 @@ class MockPath(pathlib.Path):
         for f in filter(lambda f: f not in ['', '.', '..'], re.split(r"\r?\n", p.stdout)):
             yield MockPath(self / f)
 
-    def mkdir(self):
-        subprocess.run(["mkdir", str(self)], capture_output=True, text=True, check=True)
+    def mkdir(self, *, parents=False):
+        args = [str(self)]
+        if parents:
+            args.append("-p")
+        subprocess.run(["mkdir"] + args, capture_output=True, text=True, check=True)
 
     def read_text(self) -> str:
         p = subprocess.run(["cat", str(self)], capture_output=True, text=True, check=True)
@@ -155,6 +158,7 @@ def subprocess_run(
 
     # TypeScript object is auto converted to Python dict.
     # Want to return subprocess.CompletedProcess, consider namedtuple if this fails in future.
+    returncode = proc['returncode']
     stdout = proc['stdout'] if capture_output else ''
     stderr = proc['stderr'] if capture_output else ''
     if not text:
@@ -167,12 +171,12 @@ def subprocess_run(
         if proc['returncode'] != 0:
             raise RuntimeError(f"Error setting cwd to {old_cwd}")
 
-    if check and proc['returncode'] != 0:
-        raise subprocess.CalledProcessError(proc['returncode'], cmd, stdout, stderr)
+    if check and returncode != 0:
+        raise subprocess.CalledProcessError(returncode, cmd, stdout, stderr)
 
     return subprocess.CompletedProcess(
         args=cmd,
-        returncode=proc['returncode'],
+        returncode=returncode,
         stdout=stdout,
         stderr=stderr
     )
