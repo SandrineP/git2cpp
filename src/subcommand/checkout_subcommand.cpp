@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <set>
+#include <stdexcept>
 
 #include "../subcommand/checkout_subcommand.hpp"
 #include "../subcommand/status_subcommand.hpp"
@@ -18,34 +19,6 @@ checkout_subcommand::checkout_subcommand(const libgit2_object&, CLI::App& app)
     sub->add_flag("-f, --force", m_force_checkout_flag, "When switching branches, proceed even if the index or the working tree differs from HEAD, and even if there are untracked files in the way");
 
     sub->callback([this]() { this->run(); });
-}
-
-void checkout_subcommand::print_message(repository_wrapper& repo)
-{
-    auto sl = status_list_wrapper::status_list(repo);
-    if (sl.has_tobecommited_header())
-    {
-        bool is_long, is_coloured = false;
-        std::set<std::string> tracked_dir_set{};
-        print_tobecommited(sl, tracked_dir_set, is_long, is_coloured);
-    }
-    else if (sl.has_notstagged_header())
-    {
-        std::cout << "Your local changes to the following files would be overwritten by checkout:" << std::endl;
-
-        for (const auto* entry : sl.get_entry_list(GIT_STATUS_WT_MODIFIED))
-        {
-            std::cout << "\t" << entry->head_to_index->new_file.path << std::endl;
-        }
-        for (const auto* entry : sl.get_entry_list(GIT_STATUS_WT_DELETED))
-        {
-            std::cout << "\t" << entry->head_to_index->new_file.path << std::endl;
-        }
-
-        std::cout << "Please commit your changes or stash them before you switch branches.\nAborting" << std::endl;
-    }
-    std::cout << "Switched to branch '" << m_branch_name << "'" << std::endl;
-    print_tracking_info(repo, sl, true);
 }
 
 void checkout_subcommand::run()
@@ -72,7 +45,7 @@ void checkout_subcommand::run()
         checkout_tree(repo, annotated_commit, m_branch_name, options);
         update_head(repo, annotated_commit, m_branch_name);
 
-        print_message(repo);
+        std::cout << "Switched to a new branch '" << m_branch_name << "'" << std::endl;
     }
     else
     {
@@ -84,10 +57,46 @@ void checkout_subcommand::run()
             buffer << "error: could not resolve pathspec '" << m_branch_name << "'" << std::endl;
             throw std::runtime_error(buffer.str());
         }
-        checkout_tree(repo, *optional_commit, m_branch_name, options);
-        update_head(repo, *optional_commit, m_branch_name);
 
-        print_message(repo);
+        auto sl = status_list_wrapper::status_list(repo);
+        try
+        {
+            checkout_tree(repo, *optional_commit, m_branch_name, options);
+            update_head(repo, *optional_commit, m_branch_name);
+        }
+        catch (const std::runtime_error& e)
+        {
+            if (sl.has_notstagged_header())
+            {
+                std::cout << "Your local changes to the following files would be overwritten by checkout:" << std::endl;
+
+                for (const auto* entry : sl.get_entry_list(GIT_STATUS_WT_MODIFIED))
+                {
+                    std::cout << "\t" << entry->index_to_workdir->new_file.path << std::endl;
+                }
+                for (const auto* entry : sl.get_entry_list(GIT_STATUS_WT_DELETED))
+                {
+                    std::cout << "\t" << entry->index_to_workdir->old_file.path << std::endl;
+                }
+
+                std::cout << "Please commit your changes or stash them before you switch branches.\nAborting" << std::endl;
+                return;
+            }
+            else
+            {
+                throw e;
+            }
+            return;
+        }
+
+        if (sl.has_tobecommited_header())
+        {
+            bool is_long = false, is_coloured = false;
+            std::set<std::string> tracked_dir_set{};
+            print_tobecommited(sl, tracked_dir_set, is_long, is_coloured);
+        }
+        std::cout << "Switched to branch '" << m_branch_name << "'" << std::endl;
+        print_tracking_info(repo, sl, true);
     }
 }
 

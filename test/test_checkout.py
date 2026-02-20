@@ -98,7 +98,6 @@ def test_checkout_invalid_branch(xtl_clone, git2cpp_path, tmp_path):
     assert "error: could not resolve pathspec 'nonexistent'" in p_checkout.stderr
 
 
-# @pytest.mark.skip(reason="Waiting for print_tobecommited and print_tracking_info implementations")
 def test_checkout_with_unstaged_changes(xtl_clone, git2cpp_path, tmp_path):
     """Test that checkout warns about unstaged changes"""
     assert (tmp_path / "xtl").exists()
@@ -118,47 +117,47 @@ def test_checkout_with_unstaged_changes(xtl_clone, git2cpp_path, tmp_path):
     p_checkout = subprocess.run(
         checkout_cmd, capture_output=True, cwd=xtl_path, text=True
     )
-    print(p_checkout.stdout)
     # Should show warning message (once implemented)
-    # assert (
-    #     "Your local changes to the following files would be overwritten by checkout:"
-    #     in p_checkout.stdout
-    # )
-    # assert "README.md" in p_checkout.stdout
-    # assert (
-    #     "Please commit your changes or stash them before you switch branches"
-    #     in p_checkout.stdout
-    # )
+    assert (
+        "Your local changes to the following files would be overwritten by checkout:"
+        in p_checkout.stdout
+    )
+    assert "README.md" in p_checkout.stdout
+    assert (
+        "Please commit your changes or stash them before you switch branches"
+        in p_checkout.stdout
+    )
 
     # Verify we stayed on master branch
     branch_cmd = [git2cpp_path, "branch"]
     p_branch = subprocess.run(branch_cmd, capture_output=True, cwd=xtl_path, text=True)
     assert p_branch.returncode == 0
-    # print(p_branch.stdout)
-    # assert "* master" in p_branch.stdout
+    assert "* master" in p_branch.stdout
 
 
-# def test_checkout_force_with_unstaged_changes(xtl_clone, git2cpp_path, tmp_path):
-#     """Test that checkout -f forces checkout even with unstaged changes"""
-#     assert (tmp_path / "xtl").exists()
-#     xtl_path = tmp_path / "xtl"
+def test_checkout_force_with_unstaged_changes(xtl_clone, git2cpp_path, tmp_path):
+    """Test that checkout -f forces checkout even with unstaged changes"""
+    assert (tmp_path / "xtl").exists()
+    xtl_path = tmp_path / "xtl"
 
-#     # Create a new branch
-#     create_cmd = [git2cpp_path, 'branch', 'forcebranch']
-#     p_create = subprocess.run(create_cmd, capture_output=True, cwd=xtl_path, text=True)
-#     assert p_create.returncode == 0
+    # Create a new branch
+    create_cmd = [git2cpp_path, "branch", "forcebranch"]
+    p_create = subprocess.run(create_cmd, capture_output=True, cwd=xtl_path, text=True)
+    assert p_create.returncode == 0
 
-#     # Modify a file (unstaged change)
-#     readme_path = xtl_path / "README.md"
-#     readme_path.write_text("Modified content that will be lost")
+    # Modify a file (unstaged change)
+    readme_path = xtl_path / "README.md"
+    readme_path.write_text("Modified content that will be lost")
 
-#     # Force checkout - should succeed and discard changes
-#     checkout_cmd = [git2cpp_path, 'checkout', '-f', 'forcebranch']
-#     p_checkout = subprocess.run(checkout_cmd, capture_output=True, cwd=xtl_path, text=True)
-#     assert p_checkout.returncode == 0
-#     assert "Switched to branch 'forcebranch'" in p_checkout.stdout
+    # Force checkout - should succeed and discard changes
+    checkout_cmd = [git2cpp_path, "checkout", "-f", "forcebranch"]
+    p_checkout = subprocess.run(
+        checkout_cmd, capture_output=True, cwd=xtl_path, text=True
+    )
+    assert p_checkout.returncode == 0
+    assert "Switched to branch 'forcebranch'" in p_checkout.stdout
 
-#     # Verify we're on the branch
-#     branch_cmd = [git2cpp_path, 'branch']
-#     p_branch = subprocess.run(branch_cmd, capture_output=True, cwd=xtl_path, text=True)
-#     assert '* forcebranch' in p_branch.stdout
+    # Verify we're on the branch
+    branch_cmd = [git2cpp_path, "branch"]
+    p_branch = subprocess.run(branch_cmd, capture_output=True, cwd=xtl_path, text=True)
+    assert "* forcebranch" in p_branch.stdout
