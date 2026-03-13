@@ -40,10 +40,11 @@ public:
     repository_wrapper& operator=(repository_wrapper&&) noexcept = default;
 
     static repository_wrapper init(std::string_view directory, bool bare);
+    static repository_wrapper init_ext(std::string_view repo_path, git_repository_init_options* opts);
     static repository_wrapper open(std::string_view directory);
     static repository_wrapper clone(std::string_view url, std::string_view path, const git_clone_options& opts);
 
-    std::string git_path() const;
+    std::string path() const;
     git_repository_state_t state() const;
     void state_cleanup();
 
