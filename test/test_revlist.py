@@ -1,7 +1,5 @@
 import subprocess
 
-import pytest
-
 
 def test_revlist(repo_init_with_commit, commit_env_config, git2cpp_path, tmp_path):
     assert (tmp_path / "initial.txt").exists()
@@ -19,7 +17,7 @@ def test_revlist(repo_init_with_commit, commit_env_config, git2cpp_path, tmp_pat
     p = subprocess.run(cmd, capture_output=True, cwd=tmp_path, text=True)
     assert p.returncode == 0
 
-    lines = [l for l in p.stdout.splitlines() if l.strip()]
+    lines = [line for line in p.stdout.splitlines() if line.strip()]
     assert len(lines) == 2
     assert all(len(oid) == 40 for oid in lines)
     assert lines[0] != lines[1]
