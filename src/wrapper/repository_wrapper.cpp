@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <string_view>
+#include <git2/buffer.h>
 
 #include "../utils/git_exception.hpp"
 #include "../wrapper/commit_wrapper.hpp"
@@ -192,6 +195,21 @@ std::optional<reference_wrapper> repository_wrapper::upstream() const
     {
         return std::nullopt;
     }
+}
+
+std::optional<std::string> repository_wrapper::branch_upstream_name(std::string local_branch) const
+{
+    git_buf buf = GIT_BUF_INIT;
+    int error = git_branch_upstream_name(&buf, *this, local_branch.c_str());
+    if (error != 0)
+    {
+        git_buf_dispose(&buf);
+        return std::nullopt;
+    }
+
+    std::string result(buf.ptr ? buf.ptr : "");
+    git_buf_dispose(&buf);
+    return result;
 }
 
 branch_tracking_info repository_wrapper::get_tracking_info() const
@@ -426,7 +444,7 @@ size_t repository_wrapper::shallow_depth_from_head() const
                 if (parent_list.size() > 0u)
                 {
                     has_parent = true;
-                    for (size_t j = 0u; parent_list.size(); j++)
+                    for (size_t j = 0u; j < parent_list.size(); ++j)
                     {
                         const commit_wrapper& c = parent_list[j];
                         temp_commits_list.push_back(std::move(const_cast<commit_wrapper&>(c)));

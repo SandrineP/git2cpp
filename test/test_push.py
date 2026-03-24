@@ -61,4 +61,101 @@ def test_push_private_repo(
     assert p_push.returncode == 0
     assert p_push.stdout.count("Username:") == 2
     assert p_push.stdout.count("Password:") == 2
-    assert "Pushed to origin" in p_push.stdout
+    assert " * [new branch]      test-" in p_push.stdout
+    print(p_push.stdout)
+
+
+def test_push_branch_private_repo(
+    git2cpp_path, tmp_path, run_in_tmp_path, private_test_repo, commit_env_config
+):
+    """Test push with an explicit branch name: git2cpp push <remote> <branch>."""
+    branch_name = f"test-{uuid4()}"
+
+    username = "abc"
+    password = private_test_repo["token"]
+    input = f"{username}\n{password}"
+    repo_path = tmp_path / private_test_repo["repo_name"]
+    url = private_test_repo["https_url"]
+
+    # Clone the private repo.
+    clone_cmd = [git2cpp_path, "clone", url]
+    p_clone = subprocess.run(clone_cmd, capture_output=True, text=True, input=input)
+    assert p_clone.returncode == 0
+    assert repo_path.exists()
+
+    # Create a new branch and commit on it.
+    checkout_cmd = [git2cpp_path, "checkout", "-b", branch_name]
+    p_checkout = subprocess.run(checkout_cmd, cwd=repo_path, capture_output=True, text=True)
+    assert p_checkout.returncode == 0
+
+    (repo_path / "push_branch_file.txt").write_text("push branch test")
+    subprocess.run([git2cpp_path, "add", "push_branch_file.txt"], cwd=repo_path, check=True)
+    subprocess.run([git2cpp_path, "commit", "-m", "branch commit"], cwd=repo_path, check=True)
+
+    # Switch back to main so HEAD is NOT on the branch we want to push.
+    subprocess.run(
+        [git2cpp_path, "checkout", "main"], capture_output=True, check=True, cwd=repo_path
+    )
+
+    status_cmd = [git2cpp_path, "status"]
+    p_status = subprocess.run(status_cmd, cwd=repo_path, capture_output=True, text=True)
+    assert p_status.returncode == 0
+    assert "On branch main" in p_status.stdout
+
+    # Push specifying the branch explicitly (HEAD is on main, not the test branch).
+    input = f"{username}\n{password}"
+    push_cmd = [git2cpp_path, "push", "origin", branch_name]
+    p_push = subprocess.run(push_cmd, cwd=repo_path, capture_output=True, text=True, input=input)
+    assert p_push.returncode == 0
+    assert " * [new branch]      test-" in p_push.stdout
+    print("\n\n", p_push.stdout)
+
+
+def test_push_branches_flag_private_repo(
+    git2cpp_path, tmp_path, run_in_tmp_path, private_test_repo, commit_env_config
+):
+    """Test push --branches pushes all local branches."""
+    branch_a = f"test-a-{uuid4()}"
+    branch_b = f"test-b-{uuid4()}"
+
+    username = "abc"
+    password = private_test_repo["token"]
+    input = f"{username}\n{password}"
+    repo_path = tmp_path / private_test_repo["repo_name"]
+    url = private_test_repo["https_url"]
+
+    # Clone the private repo.
+    clone_cmd = [git2cpp_path, "clone", url]
+    p_clone = subprocess.run(clone_cmd, capture_output=True, text=True, input=input)
+    assert p_clone.returncode == 0
+    assert repo_path.exists()
+
+    # Create two extra branches with commits.
+    for branch_name in [branch_a, branch_b]:
+        subprocess.run(
+            [git2cpp_path, "checkout", "-b", branch_name],
+            capture_output=True,
+            check=True,
+            cwd=repo_path,
+        )
+        (repo_path / f"{branch_name}.txt").write_text(f"content for {branch_name}")
+        subprocess.run([git2cpp_path, "add", f"{branch_name}.txt"], cwd=repo_path, check=True)
+        subprocess.run(
+            [git2cpp_path, "commit", "-m", f"commit on {branch_name}"],
+            cwd=repo_path,
+            check=True,
+        )
+
+    # Go back to main.
+    subprocess.run(
+        [git2cpp_path, "checkout", "main"], capture_output=True, check=True, cwd=repo_path
+    )
+
+    # Push all branches at once.
+    input = f"{username}\n{password}"
+    push_cmd = [git2cpp_path, "push", "origin", "--branches"]
+    p_push = subprocess.run(push_cmd, cwd=repo_path, capture_output=True, text=True, input=input)
+    assert p_push.returncode == 0
+    assert " * [new branch]      test-" in p_push.stdout
+    # assert "main" not in p_push.stdout
+    print("\n\n", p_push.stdout)

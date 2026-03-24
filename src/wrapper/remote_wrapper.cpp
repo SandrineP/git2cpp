@@ -3,8 +3,6 @@
 #include <string>
 #include <vector>
 
-#include <git2/remote.h>
-
 #include "../utils/git_exception.hpp"
 
 remote_wrapper::remote_wrapper(git_remote* remote)
@@ -61,4 +59,42 @@ void remote_wrapper::fetch(const git_strarray* refspecs, const git_fetch_options
 void remote_wrapper::push(const git_strarray* refspecs, const git_push_options* opts)
 {
     throw_if_error(git_remote_push(*this, refspecs, opts));
+}
+
+void remote_wrapper::connect(git_direction direction, const git_remote_callbacks* callbacks) const
+{
+    throw_if_error(git_remote_connect(*this, direction, callbacks, nullptr, nullptr));
+}
+
+std::vector<remote_head> remote_wrapper::list_heads(const git_remote_callbacks* callbacks = nullptr) const
+{
+    std::vector<remote_head> result;
+
+    this->connect(GIT_DIRECTION_FETCH, callbacks);
+
+    const git_remote_head** heads = nullptr;
+    size_t heads_len = 0;
+    int err = git_remote_ls(&heads, &heads_len, *this);
+    if (err != 0)
+    {
+        git_remote_disconnect(*this);
+        throw_if_error(err);
+    }
+
+    for (size_t i = 0; i < heads_len; ++i)
+    {
+        const git_remote_head* h = heads[i];
+        if (!h || !h->name)
+        {
+            continue;
+        }
+
+        remote_head rh;
+        rh.name = std::string(h->name);
+        rh.oid = h->oid;
+        result.push_back(std::move(rh));
+    }
+
+    git_remote_disconnect(*this);
+    return result;
 }

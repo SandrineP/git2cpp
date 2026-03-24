@@ -139,11 +139,9 @@ int push_update_reference(const char* refname, const char* status, void*)
 {
     if (status)
     {
-        std::cout << "  " << refname << " " << status << std::endl;
+        std::cout << " ! [remote rejected] " << refname << " (" << status << ")" << std::endl;
+        return -1;
     }
-    else
-    {
-        std::cout << "  " << refname << std::endl;
-    }
+
     return 0;
 }
