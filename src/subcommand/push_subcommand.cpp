@@ -3,7 +3,9 @@
 #include <iostream>
 
 #include <git2/remote.h>
+#include <git2/types.h>
 
+#include "../utils/ansi_code.hpp"
 #include "../utils/credentials.hpp"
 #include "../utils/progress.hpp"
 #include "../wrapper/repository_wrapper.hpp"
@@ -13,8 +15,15 @@ push_subcommand::push_subcommand(const libgit2_object&, CLI::App& app)
     auto* sub = app.add_subcommand("push", "Update remote refs along with associated objects");
 
     sub->add_option("<remote>", m_remote_name, "The remote to push to")->default_val("origin");
-
+    sub->add_option("<branch>", m_branch_name, "The branch to push");
     sub->add_option("<refspec>", m_refspecs, "The refspec(s) to push");
+    sub->add_flag(
+        "--all,--branches",
+        m_branches_flag,
+        "Push all branches (i.e. refs under " + ansi_code::bold + "refs/heads/" + ansi_code::reset
+            + "); cannot be used with other <refspec>."
+    );
+
 
     sub->callback(
         [this]()
@@ -37,25 +46,60 @@ void push_subcommand::run()
     push_opts.callbacks.push_transfer_progress = push_transfer_progress;
     push_opts.callbacks.push_update_reference = push_update_reference;
 
-    if (m_refspecs.empty())
+    if (m_branches_flag)
     {
-        try
+        auto iter = repo.iterate_branches(GIT_BRANCH_LOCAL);
+        auto br = iter.next();
+        while (br)
         {
-            auto head_ref = repo.head();
-            std::string short_name = head_ref.short_name();
-            std::string refspec = "refs/heads/" + short_name;
+            std::string refspec = "refs/heads/" + std::string(br->name());
             m_refspecs.push_back(refspec);
+            br = iter.next();
         }
-        catch (...)
+    }
+    else if (m_refspecs.empty())
+    {
+        std::string branch;
+        if (!m_branch_name.empty())
         {
-            std::cerr << "Could not determine current branch to push." << std::endl;
-            return;
+            branch = m_branch_name;
         }
+        else
+        {
+            try
+            {
+                auto head_ref = repo.head();
+                branch = head_ref.short_name();
+            }
+            catch (...)
+            {
+                std::cerr << "Could not determine current branch to push." << std::endl;
+                return;
+            }
+        }
+        std::string refspec = "refs/heads/" + branch;
+        m_refspecs.push_back(refspec);
     }
     git_strarray_wrapper refspecs_wrapper(m_refspecs);
     git_strarray* refspecs_ptr = nullptr;
     refspecs_ptr = refspecs_wrapper;
 
     remote.push(refspecs_ptr, &push_opts);
-    std::cout << "Pushed to " << remote_name << std::endl;
+
+    std::cout << "To " << remote.url() << std::endl;
+    for (const auto& refspec : m_refspecs)
+    {
+        std::string_view ref_view(refspec);
+        std::string_view prefix = "refs/heads/";
+        std::string short_name;
+        if (ref_view.substr(0, prefix.size()) == prefix)
+        {
+            short_name = ref_view.substr(prefix.size());
+        }
+        else
+        {
+            short_name = refspec;
+        }
+        std::cout << " * " << short_name << " -> " << short_name << std::endl;
+    }
 }
