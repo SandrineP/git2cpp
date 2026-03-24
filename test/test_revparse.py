@@ -120,3 +120,7 @@ def test_revparse_errors(repo_init_with_commit, git2cpp_path, tmp_path):
     p_opt = subprocess.run(opt_cmd, capture_output=True, text=True, cwd=tmp_path)
     assert p_opt.returncode != 0
     assert "The following argument was not expected:" in p_opt.stderr
+
+
+def test_blabla():
+    pass
