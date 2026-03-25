@@ -100,6 +100,6 @@ void push_subcommand::run()
         {
             short_name = refspec;
         }
-        std::cout << " * " << short_name << " -> " << short_name << std::endl;
+        std::cout << " * " << short_name << " -> " << short_name << std::endl;    // " * [new branch]      test-"
     }
 }

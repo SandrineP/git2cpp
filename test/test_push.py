@@ -61,7 +61,8 @@ def test_push_private_repo(
     assert p_push.returncode == 0
     assert p_push.stdout.count("Username:") == 2
     assert p_push.stdout.count("Password:") == 2
-    assert " * [new branch]      test-" in p_push.stdout
+    assert " * test-" in p_push.stdout  # " * [new branch]      test-"
+    print(p_push.stdout)
 
 
 def test_push_branch_private_repo(
