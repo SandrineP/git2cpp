@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <string_view>
+#include <git2/buffer.h>
 
 #include "../utils/git_exception.hpp"
 #include "../wrapper/commit_wrapper.hpp"
@@ -192,6 +195,21 @@ std::optional<reference_wrapper> repository_wrapper::upstream() const
     {
         return std::nullopt;
     }
+}
+
+std::optional<std::string> repository_wrapper::branch_upstream_name(std::string local_branch) const
+{
+    git_buf buf;
+    int error = git_branch_upstream_name(&buf, *this, local_branch.c_str());
+    if (error != 0)
+    {
+        return std::nullopt;
+    }
+
+    std::optional<std::string> result;
+    result = std::string_view(buf.ptr);
+    git_buf_dispose(&buf);
+    return result;
 }
 
 branch_tracking_info repository_wrapper::get_tracking_info() const

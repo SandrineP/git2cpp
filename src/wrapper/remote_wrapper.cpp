@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <git2/remote.h>
+#include <git2/types.h>
 
 #include "../utils/git_exception.hpp"
 
@@ -51,6 +52,44 @@ std::vector<std::string> remote_wrapper::refspecs() const
     }
 
     return result;
+}
+
+std::vector<const git_remote_head*> remote_wrapper::ls() const
+{
+    const git_remote_head** remote_heads;
+    size_t remote_heads_size;
+    throw_if_error(git_remote_ls(&remote_heads, &remote_heads_size, *this));
+
+    std::vector<const git_remote_head*> remote_heads_vec;
+    for (size_t i = 0; i < remote_heads_size; i++)
+   {
+       remote_heads_vec.push_back(remote_heads[i]);
+   }
+    return remote_heads_vec;
+}
+
+
+// std::vector<std::string> remote_wrapper::ls() const
+// {
+//     const git_remote_head** remote_heads;
+//     size_t remote_heads_size;
+//     throw_if_error(git_remote_ls(&remote_heads, &remote_heads_size, *this));
+
+//     std::vector<std::string> remote_branches;
+//     for (size_t i = 0; i < remote_heads_size; i++)
+//    {
+//        const git_remote_head* head = remote_heads[i];
+//        if (!head->local)
+//        {
+//            remote_branches.push_back(head->name);
+//        }
+//    }
+//     return remote_branches;
+// }
+
+void remote_wrapper::connect(git_direction direction, const git_remote_callbacks* callbacks)
+{
+    throw_if_error(git_remote_connect(*this, direction, callbacks, NULL, NULL));
 }
 
 void remote_wrapper::fetch(const git_strarray* refspecs, const git_fetch_options* opts, const char* reflog_message)

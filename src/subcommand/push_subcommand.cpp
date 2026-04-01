@@ -1,7 +1,9 @@
 #include "../subcommand/push_subcommand.hpp"
 
 #include <iostream>
+#include <optional>
 
+#include <git2/net.h>
 #include <git2/remote.h>
 #include <git2/types.h>
 
@@ -33,6 +35,14 @@ push_subcommand::push_subcommand(const libgit2_object&, CLI::App& app)
     );
 }
 
+int credential_cb(git_cred **out, const char *url, const char *username_from_url, unsigned int allowed_types, void *payload) {
+    // Replace with your actual credentials
+    const char* username = user_credentials;
+    const char *password = "your_password_or_token";
+
+    return git_cred_userpass_plaintext_new(out, username, password);
+}
+
 void push_subcommand::run()
 {
     auto directory = get_current_git_path();
@@ -40,6 +50,11 @@ void push_subcommand::run()
 
     std::string remote_name = m_remote_name.empty() ? "origin" : m_remote_name;
     auto remote = repo.find_remote(remote_name);
+
+    git_direction direction = GIT_DIRECTION_FETCH;
+
+    // remote.connect(direction, );
+    // auto remote_branches_ante_push = remote.ls();
 
     git_push_options push_opts = GIT_PUSH_OPTIONS_INIT;
     push_opts.callbacks.credentials = user_credentials;
@@ -85,6 +100,7 @@ void push_subcommand::run()
     refspecs_ptr = refspecs_wrapper;
 
     remote.push(refspecs_ptr, &push_opts);
+    auto remote_branches_post_push = remote.ls();
 
     std::cout << "To " << remote.url() << std::endl;
     for (const auto& refspec : m_refspecs)
@@ -100,6 +116,33 @@ void push_subcommand::run()
         {
             short_name = refspec;
         }
-        std::cout << " * " << short_name << " -> " << short_name << std::endl;    // " * [new branch]      test-"
+
+        // std::optional<std::string> branch_upstream_name = repo.branch_upstream_name(short_name);
+        std::string upstream_name;
+        upstream_name = short_name;
+        // if (branch_upstream_name.has_value())
+        // {
+        //     upstream_name = branch_upstream_name.value();
+        // }
+        // else
+        // {
+        //     // ???
+        // }
+        // if (std::find(remote_branches.begin(), remote_branches.end(), short_name) == remote_branches.end())
+        // {
+        //     std::cout << " * [new branch]      " << short_name << " -> " << short_name << std::endl;
+        // }
+        //
+        // if (std::find(remote_branches.begin(), remote_branches.end(), short_name) == remote_branches.end())
+        // {
+        //     std::cout << " * [new branch]      " << short_name << " -> " << short_name << std::endl;
+        // }
+
+        auto ref = repo.find_reference(ref_view);
+        if (!ref.is_remote())
+        {
+            std::cout << " * [new branch]      " << short_name << " -> " << upstream_name << std::endl;
+        }
+        // std::cout << " * [new branch]      " << short_name << " -> " << short_name << std::endl;
     }
 }

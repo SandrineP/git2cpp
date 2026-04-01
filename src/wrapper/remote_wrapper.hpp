@@ -25,6 +25,10 @@ public:
 
     std::vector<std::string> refspecs() const;
 
+    std::vector<const git_remote_head*> ls() const;
+    // std::vector<std::string> ls() const;
+
+    void connect(git_direction direction, const git_remote_callbacks* callbacks);
     void fetch(const git_strarray* refspecs, const git_fetch_options* opts, const char* reflog_message);
     void push(const git_strarray* refspecs, const git_push_options* opts);
 
