@@ -199,15 +199,15 @@ std::optional<reference_wrapper> repository_wrapper::upstream() const
 
 std::optional<std::string> repository_wrapper::branch_upstream_name(std::string local_branch) const
 {
-    git_buf buf;
+    git_buf buf = GIT_BUF_INIT;
     int error = git_branch_upstream_name(&buf, *this, local_branch.c_str());
     if (error != 0)
     {
+        git_buf_dispose(&buf);
         return std::nullopt;
     }
 
-    std::optional<std::string> result;
-    result = std::string_view(buf.ptr);
+    std::string result(buf.ptr ? buf.ptr : "");
     git_buf_dispose(&buf);
     return result;
 }

@@ -3,9 +3,7 @@
 #include <iostream>
 #include <optional>
 
-#include <git2/net.h>
-#include <git2/remote.h>
-#include <git2/types.h>
+#include <git2.h>
 
 #include "../utils/ansi_code.hpp"
 #include "../utils/credentials.hpp"
@@ -35,12 +33,13 @@ push_subcommand::push_subcommand(const libgit2_object&, CLI::App& app)
     );
 }
 
-int credential_cb(git_cred **out, const char *url, const char *username_from_url, unsigned int allowed_types, void *payload) {
-    // Replace with your actual credentials
-    const char* username = user_credentials;
-    const char *password = "your_password_or_token";
-
-    return git_cred_userpass_plaintext_new(out, username, password);
+// TODO: put in common
+static std::string oid_to_hex(const git_oid& oid)
+{
+    char oid_str[GIT_OID_SHA1_HEXSIZE + 1];
+    git_oid_fmt(oid_str, &oid);
+    oid_str[GIT_OID_SHA1_HEXSIZE] = '\0';
+    return std::string(oid_str);
 }
 
 void push_subcommand::run()
@@ -50,11 +49,6 @@ void push_subcommand::run()
 
     std::string remote_name = m_remote_name.empty() ? "origin" : m_remote_name;
     auto remote = repo.find_remote(remote_name);
-
-    git_direction direction = GIT_DIRECTION_FETCH;
-
-    // remote.connect(direction, );
-    // auto remote_branches_ante_push = remote.ls();
 
     git_push_options push_opts = GIT_PUSH_OPTIONS_INIT;
     push_opts.callbacks.credentials = user_credentials;
@@ -99,50 +93,79 @@ void push_subcommand::run()
     git_strarray* refspecs_ptr = nullptr;
     refspecs_ptr = refspecs_wrapper;
 
+    // take a snapshot of remote branches to check which ones are new after push
+    git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
+    callbacks.credentials = user_credentials;
+    auto remote_heads = remote.list_heads(&callbacks);
+
+    // Map with names of branches and their oids before push
+    std::unordered_map<std::string, git_oid> remote_heads_map;
+    for (const auto& h : remote_heads)
+    {
+        constexpr std::string_view prefix = "refs/heads/";
+        std::string short_name;
+        std::string_view n(h.name);
+        if (n.size() >= prefix.size() && n.substr(0, prefix.size()) == prefix)
+            short_name = std::string(n.substr(prefix.size()));
+        else
+            short_name = h.name;
+        remote_heads_map.emplace(short_name, h.oid);
+    }
+
     remote.push(refspecs_ptr, &push_opts);
-    auto remote_branches_post_push = remote.ls();
 
     std::cout << "To " << remote.url() << std::endl;
     for (const auto& refspec : m_refspecs)
     {
         std::string_view ref_view(refspec);
         std::string_view prefix = "refs/heads/";
-        std::string short_name;
+        std::string local_short_name;
         if (ref_view.substr(0, prefix.size()) == prefix)
         {
-            short_name = ref_view.substr(prefix.size());
+            local_short_name = ref_view.substr(prefix.size());
         }
         else
         {
-            short_name = refspec;
+            local_short_name = refspec;
         }
 
-        // std::optional<std::string> branch_upstream_name = repo.branch_upstream_name(short_name);
-        std::string upstream_name;
-        upstream_name = short_name;
-        // if (branch_upstream_name.has_value())
-        // {
-        //     upstream_name = branch_upstream_name.value();
-        // }
-        // else
-        // {
-        //     // ???
-        // }
-        // if (std::find(remote_branches.begin(), remote_branches.end(), short_name) == remote_branches.end())
-        // {
-        //     std::cout << " * [new branch]      " << short_name << " -> " << short_name << std::endl;
-        // }
-        //
-        // if (std::find(remote_branches.begin(), remote_branches.end(), short_name) == remote_branches.end())
-        // {
-        //     std::cout << " * [new branch]      " << short_name << " -> " << short_name << std::endl;
-        // }
-
-        auto ref = repo.find_reference(ref_view);
-        if (!ref.is_remote())
+        std::optional<std::string> upstream_opt = repo.branch_upstream_name(local_short_name);
+        std::string remote_branch = local_short_name;
+        std::string remote_ref = "refs/heads/" + local_short_name;
+        if (upstream_opt.has_value())
         {
-            std::cout << " * [new branch]      " << short_name << " -> " << upstream_name << std::endl;
+            const std::string up_name = upstream_opt.value();
+            auto pos = up_name.find('/');
+            if (pos != std::string::npos && pos + 1 < up_name.size())
+            {
+                remote_branch = up_name.substr(pos + 1);
+                remote_ref = "refs/heads/" + remote_branch;
+            }
         }
-        // std::cout << " * [new branch]      " << short_name << " -> " << short_name << std::endl;
+
+        auto iter = remote_heads_map.find(remote_ref);
+        if (iter == remote_heads_map.end())
+        {
+            std::cout << " * [new branch]      " << local_short_name << " -> " << remote_branch << std::endl;
+            continue;
+        }
+
+        git_oid remote_oid = iter->second;
+
+        auto local_oid_opt = repo.reference_target_oid("refs/heads/" + local_short_name); // OR use your wrapper to get oid
+        if (!local_oid_opt)
+        {
+            std::cout << "   " << local_short_name << " -> " << remote_branch << std::endl;
+            continue;
+        }
+        git_oid local_oid = local_oid_opt.value();
+
+        if (!git_oid_equal(&remote_oid, &local_oid))
+        {
+            std::string old_hex = oid_to_hex(remote_oid);
+            std::string new_hex = oid_to_hex(local_oid);
+            // TODO: check order of hex codes
+            std::cout << "   " << old_hex.substr(0, 7) << ".." << new_hex.substr(0, 7)
+                        << "  " << local_short_name << " -> " << local_short_name << std::endl;
+        }
     }
-}
