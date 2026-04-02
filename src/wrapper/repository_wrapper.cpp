@@ -5,6 +5,7 @@
 #include <iostream>
 #include <optional>
 #include <string_view>
+
 #include <git2/buffer.h>
 #include <git2/oid.h>
 #include <git2/refs.h>

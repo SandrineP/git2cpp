@@ -147,7 +147,7 @@ void push_subcommand::run()
             {
                 std::string up_remote = up_name.substr(0, pos);
                 std::string up_branch = up_name.substr(pos + 1);
-                if(up_remote == remote_name)
+                if (up_remote == remote_name)
                 {
                     remote_branch = up_name.substr(pos + 1);
                     remote_ref = "refs/heads/" + remote_branch;
@@ -168,7 +168,8 @@ void push_subcommand::run()
         if (auto ref_opt = repo.find_reference_dwim(("refs/heads/" + local_short_name)))
         {
             const git_oid* target = ref_opt->target();
-            local_oid_opt = *target;    // TODO: pas comprenu pourquoi je ne peux pas faire local_oid_opt = ref_opt->target();
+            local_oid_opt = *target;  // TODO: pas comprenu pourquoi je ne peux pas faire local_oid_opt =
+                                      // ref_opt->target();
         }
 
         if (!local_oid_opt)
@@ -183,8 +184,8 @@ void push_subcommand::run()
             std::string old_hex = oid_to_hex(remote_oid);
             std::string new_hex = oid_to_hex(local_oid);
             // TODO: check order of hex codes
-            std::cout << "   " << old_hex.substr(0, 7) << ".." << new_hex.substr(0, 7)
-                        << "  " << local_short_name << " -> " << local_short_name << std::endl;
+            std::cout << "   " << old_hex.substr(0, 7) << ".." << new_hex.substr(0, 7) << "  "
+                      << local_short_name << " -> " << local_short_name << std::endl;
         }
     }
 }
