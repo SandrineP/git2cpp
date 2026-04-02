@@ -15,8 +15,6 @@ int user_credentials(
     void* payload
 )
 {
-    credentials_payload* cached = payload ? static_cast<credentials_payload*>(payload) : nullptr;
-
     // Check for cached credentials here, if desired.
     // It might be necessary to make this function stateful to avoid repeating unnecessary checks.
 
@@ -24,24 +22,11 @@ int user_credentials(
 
     if (allowed_types & GIT_CREDENTIAL_USERPASS_PLAINTEXT)
     {
-        std::string username;
-        if (username_from_url && username_from_url[0] != '\0')
-        {
-            username = username_from_url;
-        }
-        else if (cached && cached->username.has_value())
-        {
-            username = *cached->username;
-        }
-        else
+        std::string username = username_from_url ? username_from_url : "";
+        if (username.empty())
         {
             username = prompt_input("Username: ");
-            if (cached && !username.empty())
-            {
-                cached->username = username;
-            }
         }
-
         if (username.empty())
         {
             giterr_set_str(GIT_ERROR_HTTP, "No username specified");
@@ -49,19 +34,6 @@ int user_credentials(
         }
 
         std::string password = prompt_input("Password: ", false);
-        if (cached && cached->password.has_value())
-        {
-            password = *cached->password;
-        }
-        else
-        {
-            password = prompt_input("Password: ", false);
-            if (cached && !password.empty())
-            {
-                cached->password = password;
-            }
-        }
-
         if (password.empty())
         {
             giterr_set_str(GIT_ERROR_HTTP, "No password specified");

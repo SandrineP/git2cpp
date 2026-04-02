@@ -62,6 +62,8 @@ public:
     // References
     reference_wrapper find_reference(std::string_view ref_name) const;
     std::optional<reference_wrapper> find_reference_dwim(std::string_view ref_name) const;
+    std::vector<std::string> reference_list() const;
+    const git_oid& ref_name_to_id(std::string ref_name) const;
 
     // Index
     index_wrapper make_index();

@@ -6,6 +6,10 @@
 #include <optional>
 #include <string_view>
 #include <git2/buffer.h>
+#include <git2/oid.h>
+#include <git2/refs.h>
+#include <git2/strarray.h>
+#include <git2/types.h>
 
 #include "../utils/git_exception.hpp"
 #include "../wrapper/commit_wrapper.hpp"
@@ -135,6 +139,26 @@ std::optional<reference_wrapper> repository_wrapper::find_reference_dwim(std::st
     git_reference* ref;
     int rc = git_reference_dwim(&ref, *this, ref_name.data());
     return rc == 0 ? std::make_optional(reference_wrapper(ref)) : std::nullopt;
+}
+
+std::vector<std::string> repository_wrapper::reference_list() const
+{
+    git_strarray* array;
+    throw_if_error(git_reference_list(array, *this));
+    std::vector<std::string> result;
+    for (size_t i = 0; i < array->count; ++i)
+    {
+        result.push_back(array->strings[i]);
+    }
+    git_strarray_free(array);
+    return result;
+}
+
+const git_oid& repository_wrapper::ref_name_to_id(std::string ref_name) const
+{
+    git_oid* ref_id;
+    throw_if_error(git_reference_name_to_id(ref_id, *this, ref_name.c_str()));
+    return *ref_id;
 }
 
 // Index

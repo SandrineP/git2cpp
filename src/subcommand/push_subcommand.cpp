@@ -1,8 +1,9 @@
 #include "../subcommand/push_subcommand.hpp"
 
+#include <algorithm>
 #include <iostream>
 #include <optional>
-#include <unordered_map>
+#include <string>
 #include <string_view>
 
 #include <git2.h>
@@ -17,7 +18,6 @@ push_subcommand::push_subcommand(const libgit2_object&, CLI::App& app)
     auto* sub = app.add_subcommand("push", "Update remote refs along with associated objects");
 
     sub->add_option("<remote>", m_remote_name, "The remote to push to")->default_val("origin");
-    sub->add_option("<branch>", m_branch_name, "The branch to push");
     sub->add_option("<refspec>", m_refspecs, "The refspec(s) to push");
     sub->add_flag(
         "--all,--branches",
@@ -71,22 +71,15 @@ void push_subcommand::run()
     else if (m_refspecs.empty())
     {
         std::string branch;
-        if (!m_branch_name.empty())
+        try
         {
-            branch = m_branch_name;
+            auto head_ref = repo.head();
+            branch = head_ref.short_name();
         }
-        else
+        catch (...)
         {
-            try
-            {
-                auto head_ref = repo.head();
-                branch = head_ref.short_name();
-            }
-            catch (...)
-            {
-                std::cerr << "Could not determine current branch to push." << std::endl;
-                return;
-            }
+            std::cerr << "Could not determine current branch to push." << std::endl;
+            return;
         }
         std::string refspec = "refs/heads/" + branch;
         m_refspecs.push_back(refspec);
@@ -95,20 +88,34 @@ void push_subcommand::run()
     git_strarray* refspecs_ptr = nullptr;
     refspecs_ptr = refspecs_wrapper;
 
-    // Take a snapshot of remote branches to check which ones are new after push
-    git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
-    callbacks.credentials = user_credentials;
-    credentials_payload creds_payload;
-    callbacks.payload = &creds_payload;
-    push_opts.callbacks.payload = &creds_payload;
+    // // Take a snapshot of remote branches to check which ones are new after push
+    // git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
+    // callbacks.credentials = user_credentials;
+    // credentials_payload creds_payload;
+    // callbacks.payload = &creds_payload;
+    // push_opts.callbacks.payload = &creds_payload;
 
-    auto remote_heads = remote.list_heads(&callbacks);
-
+    // auto remote_heads = remote.list_heads(&callbacks);
+    //
+    //
     // Map with names of branches and their oids before push
-    std::unordered_map<std::string, git_oid> remote_heads_map;
-    for (const auto& h : remote_heads)
+    // std::unordered_map<std::string, git_oid> remote_heads_map;
+    // for (const auto& h : remote_heads)
+    // {
+    //     remote_heads_map.emplace(h.name, h.oid);
+    // }
+
+    // Take a snapshot of repo's references to check which ones are new after push
+    auto repo_refs = repo.reference_list();
+    std::vector<std::string> repo_refs_remote;
+    for (int i = 0; i < repo_refs.size(); ++i)
     {
-        remote_heads_map.emplace(h.name, h.oid);
+        std::string prefix_remote = "refs/remote/";
+        if (repo_refs[i].substr(0, prefix_remote.size()) == prefix_remote)
+        {
+            std::string remote_short_name = repo_refs[i].substr(prefix_remote.size());
+            repo_refs_remote.push_back(remote_short_name);
+        }
     }
 
     remote.push(refspecs_ptr, &push_opts);
@@ -117,11 +124,11 @@ void push_subcommand::run()
     for (const auto& refspec : m_refspecs)
     {
         std::string_view ref_view(refspec);
-        std::string_view prefix = "refs/heads/";
+        std::string_view prefix_local = "refs/heads/";
         std::string local_short_name;
-        if (ref_view.substr(0, prefix.size()) == prefix)
+        if (ref_view.substr(0, prefix_local.size()) == prefix_local)
         {
-            local_short_name = ref_view.substr(prefix.size());
+            local_short_name = ref_view.substr(prefix_local.size());
         }
         else
         {
@@ -148,14 +155,14 @@ void push_subcommand::run()
             }
         }
 
-        auto iter = remote_heads_map.find(remote_ref);
-        if (iter == remote_heads_map.end())
+        auto iter = std::find(repo_refs_remote.begin(), repo_refs_remote.end(), remote_ref);
+        if (iter == repo_refs_remote.end())
         {
             std::cout << " * [new branch]      " << local_short_name << " -> " << remote_branch << std::endl;
             continue;
         }
 
-        git_oid remote_oid = iter->second;
+        git_oid remote_oid = repo.ref_name_to_id(*iter);
 
         std::optional<git_oid> local_oid_opt;
         if (auto ref_opt = repo.find_reference_dwim(("refs/heads/" + local_short_name)))
